@@ -47,7 +47,7 @@ inscrap run --help
 
 ```bash
 uv build
-uv tool install dist/insales_scraper-1.0-py3-none-any.whl
+uv tool install dist/insales_scraper-1.1.0-py3-none-any.whl
 ```
 
 Или установить wheel по конкретному пути:
@@ -95,6 +95,7 @@ inscrap run https://shop.example.com -o data/catalog.xlsx
 | `-r`, `--retries` | Количество повторных попыток после ошибки запроса. | `5` |
 | `-t`, `--transport` | HTTP-транспорт: `httpx` или `curl_cffi`. | `httpx` |
 | `-f`, `--fatalist` | Остановить выгрузку после первой ошибки запроса товара. | выключен |
+| `-p`, `--proxy` | URL прокси-сервера для HTTP-запросов. | не задан |
 
 Для большого каталога увеличивайте параллелизм постепенно, чтобы не создавать
 лишнюю нагрузку на магазин:

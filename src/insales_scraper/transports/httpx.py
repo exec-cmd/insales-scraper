@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class HTTPXTransport(Transport):
     def __init__(self):
-        self.client = AsyncClient()
+        self.client = AsyncClient(proxy=config.proxy)
         self.semaphore = Semaphore(config.concurrency)
 
     async def request(self, url: str) -> str:

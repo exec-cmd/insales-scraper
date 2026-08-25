@@ -2,8 +2,12 @@
 
 Inscrap is a small command-line tool for exporting product catalogs from
 [InSales](https://www.insales.ru/) stores. It reads product URLs from a
-`sitemap.xml`, fetches each product through the store's JSON API, and writes
+`sitemap.xml`, fetches product data through the store's JSON API, and writes
 the result to a file.
+
+It is useful when you need to quickly collect product titles, descriptions,
+prices, stock levels, images, and variants without browsing the catalog
+manually.
 
 [Русская версия](README_RU.md)
 
@@ -43,7 +47,7 @@ You can also build and install a wheel:
 
 ```bash
 uv build
-uv tool install dist/insales_scraper-1.0-py3-none-any.whl
+uv tool install dist/insales_scraper-1.1.0-py3-none-any.whl
 ```
 
 Or install a wheel from a specific path:
@@ -91,6 +95,7 @@ inscrap run https://shop.example.com -o data/catalog.xlsx
 | `-r`, `--retries` | Number of retry attempts after a request error. | `5` |
 | `-t`, `--transport` | HTTP transport: `httpx` or `curl_cffi`. | `httpx` |
 | `-f`, `--fatalist` | Stop the export after the first product request error. | disabled |
+| `-p`, `--proxy` | Proxy URL used for HTTP requests. | not set |
 
 For a large catalog, increase concurrency gradually so you do not put
 unnecessary load on the store:
@@ -121,8 +126,8 @@ availability, quantity, current price, and old price.
 
 1. Inscrap opens the provided `sitemap.xml`. If you pass a store URL, it adds `/sitemap.xml`.
 2. It keeps sitemap links that contain `/product/`.
-3. It requests the JSON endpoint for each product by adding `.json` to the product URL.
-4. It saves successful results to the selected file. By default, failed product requests are skipped and included in the final count.
+3. It requests the JSON version of each product page by adding `.json` to the product URL.
+4. It saves successfully loaded products to the selected file. By default, products with errors are skipped, and their number is included in the final statistics.
 
 ## Built with
 

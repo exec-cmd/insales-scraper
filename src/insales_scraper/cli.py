@@ -28,6 +28,7 @@ Retries_flag = Option(
 )
 Transport_flag = Option(config.transport, "-t", "--transport", help="Transport layer")
 Fatalist_flag = Option(False, "-f", "--fatalist", help="Stop on first request error")
+Proxy_flag = Option(config.proxy, "-p", "--proxy", help="Proxy URL")
 
 
 app = Typer()
@@ -41,9 +42,10 @@ def run(
     retries: int = Retries_flag,
     transport: str = Transport_flag,
     fatalist: bool = Fatalist_flag,
+    proxy: str = Proxy_flag,
 ):
     logger.info(
-        f"url: {url}, output: {output}, concurrency: {concurrency}, retries: {retries}, transport: {transport}"
+        f"url: {url}, output: {output}, concurrency: {concurrency}, retries: {retries}, transport: {transport}, proxy: {bool(proxy)}"
     )
 
     console.print(f"[italic]Начинаем парсинг {url} ...[/italic]")
@@ -52,6 +54,7 @@ def run(
     config.retries = retries
     config.transport = transport
     config.fatalist = fatalist
+    config.proxy = proxy
 
     content = asyncio.run(scrape(url))
 

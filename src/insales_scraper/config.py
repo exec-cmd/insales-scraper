@@ -9,6 +9,8 @@ class Config:
     concurrency: int = 5
 
     transport: str = "httpx"
+    proxy: str | None = None
+
     level: int = logging.WARNING
 
     fatalist: bool = False

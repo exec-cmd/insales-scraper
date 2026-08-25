@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class CurlCFFITransport(Transport):
     def __init__(self):
-        self.client = AsyncSession()
+        self.client = AsyncSession(proxy=config.proxy)
         self.semaphore = Semaphore(config.concurrency)
 
     async def request(self, url: str) -> str:

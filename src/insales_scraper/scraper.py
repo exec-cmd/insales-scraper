@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from json.decoder import JSONDecodeError
 from xml.etree import ElementTree
 
 from rich.progress import track
@@ -22,6 +23,9 @@ class Scraper:
     async def scrape(self, url) -> list[Product]:
         async with self.transport:
             urls = await self._get_all_urls_products(url)
+
+            if not urls:
+                return []
 
             console.print("\n")  # Empty String for spacing
 
@@ -68,7 +72,7 @@ class Scraper:
 
         try:
             response = await self.transport.request(api_url)
-        except RuntimeError as e:
+        except Exception as e:
             logger.error(f"Failed to get product {product_url}: {e}")
 
             if config.fatalist:
@@ -76,46 +80,67 @@ class Scraper:
 
             return None
 
-        data = json.loads(response)["product"]
+        try:
+            data = json.loads(response)["product"]
+        except (JSONDecodeError, KeyError) as e:
+            logger.error(f"Failed to parse product {product_url}: {e}")
+            return None
 
-        product = Product(
-            id=data["id"],
-            title=data["title"],
-            description=data["description"],
-            url=product_url,
-            available=data["available"],
-            images=[image["original_url"] for image in data["images"]],
-            variants=self._get_variants(data["variants"]),
-        )
+        try:
+            variants = self._get_variants(data["variants"])
+
+            if variants is None:
+                raise KeyError("No variants found")
+
+            product = Product(
+                id=data["id"],
+                title=data["title"],
+                description=data["description"],
+                url=product_url,
+                available=data["available"],
+                images=[image["original_url"] for image in data["images"]],
+                variants=variants,
+            )
+        except KeyError as e:
+            logger.error(f"Failed to parse product {product_url}: {e}")
+            return None
 
         return product
 
-    def _get_variants(self, variants_data: list[dict]) -> list[Variant]:
+    def _get_variants(self, variants_data: list[dict]) -> list[Variant] | None:
         variants = []
 
-        for data in variants_data:
-            variant = Variant(
-                id=data["id"],
-                title=data["title"],
-                sku=data["sku"],
-                barcode=data["barcode"],
-                available=data["available"],
-                quantity=data["quantity"],
-                price=data["price"],
-                old_price=data["old_price"],
-            )
+        try:
+            for data in variants_data:
+                variant = Variant(
+                    id=data["id"],
+                    title=data["title"],
+                    sku=data["sku"],
+                    barcode=data["barcode"],
+                    available=data["available"],
+                    quantity=data["quantity"],
+                    price=data["price"],
+                    old_price=data["old_price"],
+                )
 
-            variants.append(variant)
+                variants.append(variant)
+        except KeyError as e:
+            logger.error(f"Failed to parse variants: {e}")
+            return None
 
         return variants
 
     def _get_products_from_sitemap(self, xml: str) -> list[str]:
-        root = ElementTree.fromstring(xml)
+        try:
+            root = ElementTree.fromstring(xml)
 
-        return [
-            element.text.strip()
-            for element in root.iter()
-            if element.tag.split("}")[-1] == "loc"
-            and element.text
-            and "/product/" in element.text
-        ]
+            return [
+                element.text.strip()
+                for element in root.iter()
+                if element.tag.split("}")[-1] == "loc"
+                and element.text
+                and "/product/" in element.text
+            ]
+        except ElementTree.ParseError as e:
+            logger.error(f"Failed to parse sitemap: {e}")
+            return []
