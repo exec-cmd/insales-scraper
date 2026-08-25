@@ -23,8 +23,8 @@ class Scraper:
         async with self.transport:
             urls = await self._get_all_urls_products(url)
 
-            console.print("\n") # Empty String for spacing
-            
+            console.print("\n")  # Empty String for spacing
+
             products = [
                 await task
                 for task in track(
@@ -35,7 +35,7 @@ class Scraper:
                     description="Загрузка товаров",
                     console=console,
                 )
-            ] # Progress Bar
+            ]  # Progress Bar
 
             empty_products = [p for p in products if p is None]
             products = [p for p in products if p is not None]
@@ -68,11 +68,11 @@ class Scraper:
 
         try:
             response = await self.transport.request(api_url)
-        except RuntimeError as err:
-            logger.error(f"Failed to get product {product_url}: {err}")
+        except RuntimeError as e:
+            logger.error(f"Failed to get product {product_url}: {e}")
 
             if config.fatalist:
-                raise err
+                raise
 
             return None
 
