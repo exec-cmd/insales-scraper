@@ -1,69 +1,72 @@
 # Inscrap
 
-`Inscrap` — небольшая консольная утилита для выгрузки каталога магазинов на [InSales](https://www.insales.ru/). Она берёт ссылки на товары из `sitemap.xml`, запрашивает данные через JSON API магазина и сохраняет их в удобный файл.
+Inscrap is a small command-line tool for exporting product catalogs from
+[InSales](https://www.insales.ru/) stores. It reads product URLs from a
+`sitemap.xml`, fetches each product through the store's JSON API, and writes
+the result to a file.
 
-Подойдёт, если нужно быстро получить названия, описания, цены, остатки, изображения и варианты товаров без ручного обхода каталога.
+[Русская версия](README_RU.md)
 
-## Быстрый старт
+## Quick start
 
-Нужен Python 3.13+ и, желательно, [uv](https://docs.astral.sh/uv/).
+Requirements: Python 3.13 or newer and, preferably, [uv](https://docs.astral.sh/uv/).
 
-Из клонированного репозитория можно запустить программу без установки:
+Run Inscrap directly from a cloned repository:
 
 ```bash
 uv run inscrap run https://shop.example.com -o products.xlsx
 ```
 
-Адрес магазина можно заменить прямой ссылкой на sitemap:
+You can pass a sitemap URL instead of the store URL:
 
 ```bash
 uv run inscrap run https://shop.example.com/sitemap.xml
 ```
 
-Если не указать `-o`, результат появится в файле `products.json` в текущем каталоге.
+Without `-o`, the result is saved as `products.json` in the current directory.
 
-## Установка команды
+## Installation
 
-Чтобы вызывать `inscrap` из любого каталога, установите проект как инструмент:
+Install Inscrap as a global `uv` tool to use it from any directory:
 
 ```bash
 uv tool install .
 ```
 
-Проверка установки:
+Check the installation:
 
 ```bash
 inscrap run --help
 ```
 
-Также можно установить заранее собранный wheel:
+You can also build and install a wheel:
 
 ```bash
 uv build
 uv tool install dist/insales_scraper-1.0-py3-none-any.whl
 ```
 
-Или укажите путь к полученному `.whl`-файлу:
+Or install a wheel from a specific path:
 
 ```bash
 uv tool install /path/to/insales_scraper-1.0-py3-none-any.whl
 ```
 
-Удалить глобальную установку:
+Remove the global installation with:
 
 ```bash
 uv tool uninstall insales-scraper
 ```
 
-## Использование
+## Usage
 
-После установки команда выглядит так:
+After installation, the command is:
 
 ```bash
 inscrap run URL [OPTIONS]
 ```
 
-Например, сохранить каталог в разных форматах:
+Choose the output format by changing the file extension:
 
 ```bash
 inscrap run https://shop.example.com -o products.json
@@ -72,52 +75,56 @@ inscrap run https://shop.example.com -o products.xlsx
 inscrap run https://shop.example.com -o products.txt
 ```
 
-Каталог для выходного файла должен уже существовать:
+The output directory must already exist:
 
 ```bash
 mkdir -p data
 inscrap run https://shop.example.com -o data/catalog.xlsx
 ```
 
-### Настройки запроса
+### Request options
 
-| Параметр | Что меняет | По умолчанию |
+| Option | Description | Default |
 | --- | --- | --- |
-| `-o`, `--output` | Путь к файлу результата. Формат определяется расширением: `.json`, `.csv`, `.xlsx` или `.txt` | `products.json` |
-| `-c`, `--concurrency` | Количество одновременных запросов, от 1 до 50 | `5` |
-| `-r`, `--retries` | Количество повторных попыток при ошибке запроса | `5` |
-| `-t`, `--transport` | HTTP-клиент: `httpx` или `curl_cffi` | `httpx` |
-| `-f`, `--fatalist` | Прервать выгрузку при первой ошибке загрузки товара | выключен |
+| `-o`, `--output` | Output path. The format is selected by the `.json`, `.csv`, `.xlsx`, or `.txt` extension. | `products.json` |
+| `-c`, `--concurrency` | Number of concurrent requests, from 1 to 50. | `5` |
+| `-r`, `--retries` | Number of retry attempts after a request error. | `5` |
+| `-t`, `--transport` | HTTP transport: `httpx` or `curl_cffi`. | `httpx` |
+| `-f`, `--fatalist` | Stop the export after the first product request error. | disabled |
 
-Для большого каталога можно увеличить параллелизм, но лучше делать это постепенно, чтобы не перегружать магазин:
+For a large catalog, increase concurrency gradually so you do not put
+unnecessary load on the store:
 
 ```bash
 inscrap run https://shop.example.com -c 10 -r 3 -o catalog.csv
 ```
 
-Посмотреть доступные HTTP-транспорты:
+List the available HTTP transports with:
 
 ```bash
 inscrap transport
 ```
 
-## Что попадает в выгрузку
+## Exported data
 
-Для каждого товара сохраняются его идентификатор, название, описание, ссылка, наличие, изображения и варианты. У варианта есть собственные идентификатор, название, SKU, штрихкод, наличие, остаток, текущая и старая цена.
+Each product includes its ID, title, description, URL, availability, images,
+and variants. Each variant includes its own ID, title, SKU, barcode,
+availability, quantity, current price, and old price.
 
-| Формат | Представление данных |
+| Format | Data layout |
 | --- | --- |
-| JSON | Полная вложенная структура: товар и его варианты. |
-| CSV / XLSX | Одна строка на вариант; общие поля товара повторяются в строках его вариантов. |
-| TXT | Текстовое представление найденных товаров. |
+| JSON | The complete nested structure with products and their variants. |
+| CSV / XLSX | One row per variant. Product fields are repeated for each of its variants. |
+| TXT | A text representation of the scraped products. |
 
-## Как это работает
+## How it works
 
-1. Утилита открывает переданный `sitemap.xml` — или добавляет `/sitemap.xml` к адресу магазина.
-2. Из sitemap выбираются ссылки, содержащие `/product/`.
-3. Для каждой ссылки загружается соответствующий JSON (`<ссылка-на-товар>.json`).
-4. Успешно загруженные товары записываются в выбранный файл. Ошибочные запросы по умолчанию пропускаются и выводятся в итоговой статистике.
+1. Inscrap opens the provided `sitemap.xml`. If you pass a store URL, it adds `/sitemap.xml`.
+2. It keeps sitemap links that contain `/product/`.
+3. It requests the JSON endpoint for each product by adding `.json` to the product URL.
+4. It saves successful results to the selected file. By default, failed product requests are skipped and included in the final count.
 
-## Стек
+## Built with
 
-`Typer` и `Rich` для CLI, `httpx` и `curl-cffi` для HTTP-запросов, `polars` и `xlsxwriter` для экспорта.
+`Typer` and `Rich` power the CLI. HTTP requests use `httpx` or `curl-cffi`,
+and exports use `polars` and `xlsxwriter`.

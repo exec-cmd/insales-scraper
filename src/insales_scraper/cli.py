@@ -24,7 +24,7 @@ Concurrency_flag = Option(
     help="Number of concurrent workers",
 )
 Retries_flag = Option(
-    config.retries, "-r", "--retries", min=0, help="Number of retries"
+    config.retries, "-r", "--retries", min=1, max=50, help="Number of retries"
 )
 Transport_flag = Option(config.transport, "-t", "--transport", help="Transport layer")
 Fatalist_flag = Option(False, "-f", "--fatalist", help="Stop on first request error")
