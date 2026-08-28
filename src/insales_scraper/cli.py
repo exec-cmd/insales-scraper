@@ -5,7 +5,7 @@ from pathlib import Path
 from rich.table import Table
 from typer import Argument, Option, Typer
 
-from .config import config
+from .config import Config, default_config
 from .console import console
 from .exporter import Exporter
 from .scraper import Scraper
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 URL_flag = Argument(..., help="URL to scrape")
 Output_flag = Option(Path("products.json"), "-o", "--output", help="Output file path")
 Concurrency_flag = Option(
-    config.concurrency,
+    default_config.concurrency,
     "-c",
     "--concurrency",
     min=1,
@@ -24,11 +24,15 @@ Concurrency_flag = Option(
     help="Number of concurrent workers",
 )
 Retries_flag = Option(
-    config.retries, "-r", "--retries", min=1, max=50, help="Number of retries"
+    default_config.retries, "-r", "--retries", min=1, max=50, help="Number of retries"
 )
-Transport_flag = Option(config.transport, "-t", "--transport", help="Transport layer")
-Fatalist_flag = Option(False, "-f", "--fatalist", help="Stop on first request error")
-Proxy_flag = Option(config.proxy, "-p", "--proxy", help="Proxy URL")
+Transport_flag = Option(
+    default_config.transport, "-t", "--transport", help="Transport layer"
+)
+Fatalist_flag = Option(
+    default_config.fatalist, "-f", "--fatalist", help="Stop on first request error"
+)
+Proxy_flag = Option(default_config.proxy, "-p", "--proxy", help="Proxy URL")
 
 
 app = Typer()
@@ -50,21 +54,23 @@ def run(
 
     console.print(f"[italic]Начинаем парсинг {url} ...[/italic]")
 
-    config.concurrency = concurrency
-    config.retries = retries
-    config.transport = transport
-    config.fatalist = fatalist
-    config.proxy = proxy
+    config = Config(
+        concurrency=concurrency,
+        retries=retries,
+        transport=transport,
+        fatalist=fatalist,
+        proxy=proxy,
+    )
 
-    content = asyncio.run(scrape(url))
+    content = asyncio.run(scrape(url, config))
 
     export(output, content)
 
     console.print("[italic]Парсинг завершен [green]✔[/green][/italic]")
 
 
-async def scrape(url: str):
-    scraper = Scraper()
+async def scrape(url: str, config=default_config):
+    scraper = Scraper(config)
     products = await scraper.scrape(url)
 
     return products
@@ -85,7 +91,7 @@ def transport():
     table.add_column("Статус", style="green")
 
     for name in TRANSPORT_VARIANTS:
-        status = "по умолчанию" if name == config.transport else ""
+        status = "по умолчанию" if name == default_config.transport else ""
         table.add_row(name, status)
 
     console.print(table)

@@ -6,7 +6,7 @@ from xml.etree import ElementTree
 
 from rich.progress import track
 
-from .config import config
+from .config import default_config
 from .console import console
 from .models import Product, Variant
 from .transports import TRANSPORT_VARIANTS, Transport
@@ -15,10 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 class Scraper:
-    def __init__(self):
+    def __init__(self, config=default_config):
         transport_cls = TRANSPORT_VARIANTS[config.transport]
 
-        self.transport: Transport = transport_cls()
+        self.transport: Transport = transport_cls(config)
+        self.config = config
 
     async def scrape(self, url) -> list[Product]:
         async with self.transport:
@@ -75,7 +76,7 @@ class Scraper:
         except Exception as e:
             logger.error(f"Failed to get product {product_url}: {e}")
 
-            if config.fatalist:
+            if self.config.fatalist:
                 raise
 
             return None

@@ -16,4 +16,4 @@ class Config:
     fatalist: bool = False
 
 
-config = Config()
+default_config = Config()
