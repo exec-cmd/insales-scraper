@@ -1,19 +1,25 @@
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
 class Config:
-    sleep_duration: float = 4.5
-    retries: int = 5
-    concurrency: int = 5
+    retry_delay_seconds: float = 4.5
+    max_request_attempts: int = 5
+    max_concurrent_requests: int = 5
 
-    transport: str = "httpx"
-    proxy: str | None = None
+    transport_backend: str = "httpx"
+    proxy_url: str | None = None
 
-    level: int = logging.WARNING
+    output_file_path: Path = Path("output.json")
 
-    fatalist: bool = False
+    log_level: int = logging.WARNING
+
+    fail_on_request_error: bool = False
+
+    interval_between_runs_seconds: float = 15
+    number_of_runs: int = 1
 
 
 default_config = Config()

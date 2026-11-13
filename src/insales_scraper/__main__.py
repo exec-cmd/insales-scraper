@@ -7,7 +7,7 @@ from .config import default_config
 from .console import console
 
 logging.basicConfig(
-    level=default_config.level,
+    level=default_config.log_level,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[RichHandler(console=console, rich_tracebacks=True, show_path=False)],
 )

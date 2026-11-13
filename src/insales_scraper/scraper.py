@@ -6,22 +6,22 @@ from xml.etree import ElementTree
 
 from rich.progress import track
 
-from .config import default_config
+from .config import Config, default_config
 from .console import console
 from .models import Product, Variant
-from .transports import TRANSPORT_VARIANTS, Transport
+from .transports import TRANSPORT_VARIANTS, Transport, TransportError
 
 logger = logging.getLogger(__name__)
 
 
 class Scraper:
-    def __init__(self, config=default_config):
-        transport_cls = TRANSPORT_VARIANTS[config.transport]
+    def __init__(self, config: Config = default_config):
+        transport_cls = TRANSPORT_VARIANTS[config.transport_backend]
 
         self.transport: Transport = transport_cls(config)
-        self.config = config
+        self.config: Config = config
 
-    async def scrape(self, url) -> list[Product]:
+    async def scrape(self, url: str) -> list[Product]:
         async with self.transport:
             urls = await self._get_all_urls_products(url)
 
@@ -73,10 +73,10 @@ class Scraper:
 
         try:
             response = await self.transport.request(api_url)
-        except Exception as e:
+        except TransportError as e:
             logger.error(f"Failed to get product {product_url}: {e}")
 
-            if self.config.fatalist:
+            if self.config.fail_on_request_error:
                 raise
 
             return None
@@ -102,7 +102,7 @@ class Scraper:
                 images=[image["original_url"] for image in data["images"]],
                 variants=variants,
             )
-        except KeyError as e:
+        except (KeyError, TypeError) as e:
             logger.error(f"Failed to parse product {product_url}: {e}")
             return None
 
