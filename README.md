@@ -1,62 +1,67 @@
+English · [Русский](README.RU.md)
+
+<p align="center">
+  <img src="assets/logo.svg" width="128" alt="Inscrap logo">
+</p>
+
 # Inscrap
 
-Inscrap is a small command-line tool for exporting product catalogs from
-[InSales](https://www.insales.ru/) stores. It reads product URLs from a
-`sitemap.xml`, fetches product data through the store's JSON API, and writes
-the result to a file.
+[![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue)](https://www.python.org/)
+[![Version](https://img.shields.io/badge/version-1.3.0-green)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-It is useful when you need to quickly collect product titles, descriptions,
-prices, stock levels, images, and variants without browsing the catalog
-manually.
+**Export a product catalog from any [InSales](https://www.insales.ru/) store to JSON, CSV, XLSX, or TXT with a single command.**
 
-[Русская версия](README_RU.md)
+Inscrap reads product URLs from the store's `sitemap.xml`, fetches each product
+through its JSON endpoint, and saves titles, descriptions, prices, stock levels,
+images, and variants to a file. It can run on a schedule and install itself as a
+systemd user service on Linux.
+
+## Contents
+
+- [Quick start](#quick-start)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Scheduled runs and autostart](#scheduled-runs-and-autostart)
+- [Exported data](#exported-data)
+- [How it works](#how-it-works)
+- [Development](#development)
 
 ## Quick start
 
-Requirements: Python 3.13 or newer and, preferably, [uv](https://docs.astral.sh/uv/).
+Requirements: Python 3.13+ and [uv](https://docs.astral.sh/uv/) (recommended).
 
-Run Inscrap directly from a cloned repository:
+From a cloned repository, no installation needed:
 
 ```bash
 uv run inscrap run https://shop.example.com -o products.xlsx
 ```
 
-You can pass a sitemap URL instead of the store URL:
+You can pass the sitemap URL instead of the store URL:
 
 ```bash
 uv run inscrap run https://shop.example.com/sitemap.xml
 ```
 
-Without `-o`, the result is saved as `products.json` in the current directory.
+Without `-o`, the result is saved to `output.json` in the current directory.
 
 ## Installation
 
-Install Inscrap as a global `uv` tool to use it from any directory:
+Install as a global `uv` tool to run `inscrap` from any directory:
 
 ```bash
 uv tool install .
+inscrap run --help   # verify
 ```
 
-Check the installation:
-
-```bash
-inscrap run --help
-```
-
-You can also build and install a wheel:
+Or build a wheel and install it:
 
 ```bash
 uv build
-uv tool install dist/insales_scraper-1.1.0-py3-none-any.whl
+uv tool install dist/insales_scraper-1.3.0-py3-none-any.whl
 ```
 
-Or install a wheel from a specific path:
-
-```bash
-uv tool install /path/to/insales_scraper-1.0-py3-none-any.whl
-```
-
-Remove the global installation with:
+Uninstall:
 
 ```bash
 uv tool uninstall insales-scraper
@@ -64,13 +69,14 @@ uv tool uninstall insales-scraper
 
 ## Usage
 
-After installation, the command is:
-
 ```bash
 inscrap run URL [OPTIONS]
+inscrap transport                 # list available HTTP transports
+inscrap install-service URL [OPTIONS]   # run as a systemd user service (Linux)
+inscrap uninstall                 # remove that service
 ```
 
-Choose the output format by changing the file extension:
+The output format follows the file extension:
 
 ```bash
 inscrap run https://shop.example.com -o products.json
@@ -79,57 +85,84 @@ inscrap run https://shop.example.com -o products.xlsx
 inscrap run https://shop.example.com -o products.txt
 ```
 
-The output directory must already exist:
+> [!NOTE]
+> The output directory must already exist (`mkdir -p data`).
 
-```bash
-mkdir -p data
-inscrap run https://shop.example.com -o data/catalog.xlsx
-```
+### Options
 
-### Request options
+`run` and `install-service` accept the same options.
 
 | Option | Description | Default |
 | --- | --- | --- |
-| `-o`, `--output` | Output path. The format is selected by the `.json`, `.csv`, `.xlsx`, or `.txt` extension. | `products.json` |
-| `-c`, `--concurrency` | Number of concurrent requests, from 1 to 50. | `5` |
-| `-r`, `--retries` | Number of retry attempts after a request error. | `5` |
-| `-t`, `--transport` | HTTP transport: `httpx` or `curl_cffi`. | `httpx` |
-| `-f`, `--fatalist` | Stop the export after the first product request error. | disabled |
-| `-p`, `--proxy` | Proxy URL used for HTTP requests. | not set |
+| `-o`, `--output` | Output path. Format is chosen by the `.json`, `.csv`, `.xlsx`, or `.txt` extension. | `output.json` |
+| `-c`, `--concurrency` | Maximum simultaneous product requests, 1–50. | `5` |
+| `-r`, `--retries` | Maximum request attempts per URL, including the first one, 1–50. | `5` |
+| `-t`, `--transport` | HTTP client: `httpx` or `curl_cffi`. See `inscrap transport`. | `httpx` |
+| `-f`, `--fail-fast` | Abort the whole run after the first product request fails. | off |
+| `-p`, `--proxy` | Proxy URL for HTTP requests. | none |
+| `--interval` | Seconds to wait between runs, minimum 1. | `15` |
+| `--count` | Number of runs, minimum 1. | `1` |
 
-For a large catalog, increase concurrency gradually so you do not put
-unnecessary load on the store:
+For large catalogs, raise concurrency gradually to avoid overloading the store:
 
 ```bash
 inscrap run https://shop.example.com -c 10 -r 3 -o catalog.csv
 ```
 
-List the available HTTP transports with:
+## Scheduled runs and autostart
+
+`--count` runs the scrape several times in a row, waiting `--interval` seconds
+between runs. **Each run overwrites the output file**, so the file always holds
+the latest snapshot:
 
 ```bash
-inscrap transport
+inscrap run https://shop.example.com -o data/catalog.json --count 24 --interval 3600
 ```
+
+On Linux with systemd, `install-service` takes the same arguments as `run` and
+writes a user unit to `~/.config/systemd/user/inscrap.service`. It enables and
+starts the unit right away. The command must be on `PATH`, so install the tool
+with `uv tool install .` first.
+
+```bash
+inscrap install-service https://shop.example.com -o data/catalog.csv --count 24 --interval 3600
+inscrap uninstall
+```
+
+The unit restarts on failure. Both commands call `systemctl --user`.
 
 ## Exported data
 
-Each product includes its ID, title, description, URL, availability, images,
-and variants. Each variant includes its own ID, title, SKU, barcode,
-availability, quantity, current price, and old price.
+Each product has an ID, title, description, URL, availability, images, and
+variants. Each variant has its own ID, title, SKU, barcode, availability,
+quantity, price, and old price.
 
-| Format | Data layout |
+| Format | Layout |
 | --- | --- |
-| JSON | The complete nested structure with products and their variants. |
-| CSV / XLSX | One row per variant. Product fields are repeated for each of its variants. |
-| TXT | A text representation of the scraped products. |
+| JSON | Full nested structure: products with their variants. |
+| CSV / XLSX | One row per variant; product fields repeat on each row. Images are joined with `; `. |
+| TXT | Text representation of each product. |
 
 ## How it works
 
-1. Inscrap opens the provided `sitemap.xml`. If you pass a store URL, it adds `/sitemap.xml`.
-2. It keeps sitemap links that contain `/product/`.
-3. It requests the JSON version of each product page by adding `.json` to the product URL.
-4. It saves successfully loaded products to the selected file. By default, products with errors are skipped, and their number is included in the final statistics.
+1. Opens the given `sitemap.xml` (for a store URL, appends `/sitemap.xml`).
+2. Keeps links containing `/product/`.
+3. Requests each product's JSON by appending `.json` to its URL.
+4. Saves the loaded products. Failed products are skipped by default and counted in the final summary; use `--fail-fast` to abort instead.
 
-## Built with
+## Development
 
-`Typer` and `Rich` power the CLI. HTTP requests use `httpx` or `curl-cffi`,
-and exports use `polars` and `xlsxwriter`.
+```bash
+uv sync
+uv run pytest
+make fmt   # ruff format + check --fix
+make chk   # fmt, then pytest
+```
+
+Built with [Typer](https://typer.tiangolo.com/) and [Rich](https://github.com/Textualize/rich) (CLI),
+[httpx](https://www.python-httpx.org/) / [curl-cffi](https://github.com/lexiforest/curl_cffi) (HTTP),
+and [polars](https://pola.rs/) / [xlsxwriter](https://xlsxwriter.readthedocs.io/) (export).
+
+## License
+
+[MIT](LICENSE)
